@@ -1,7 +1,7 @@
-En:
+EN:
 
 Execute run.sh file. It will do all the job.
 
-Pt-br:
+PT-BR:
 
 Execute o arquivo run.sh. Ele fara todo o trabalho.
