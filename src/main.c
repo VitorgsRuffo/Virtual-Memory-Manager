@@ -4,20 +4,25 @@
 #include "virtualMemoryManager.h"
 
 
-int main(){
-    VirtualMemoryManager vmm = newVirtualMemoryManager();
+int main(int argc, char *argv[]){
+    if (argc < 3){
+        fprintf("error: correct arguments must be provided.\n", stderr);
+        fprintf("usage: vmm addresses_file backing_store_file\n", stderr);
+        return 1;
+    }
 
-    FILE* addresses = fopen("./addresses.txt", "r");
+    FILE* addresses = fopen(argv[1], "r");
     if(addresses == NULL){
-        printf("error: it was not possible to open addresses file.\n");
+        fprintf("error: it was not possible to open addresses file.\n", stderr);
         return 1;
     } 
     char address[12];
-    
+
+    VirtualMemoryManager vmm = newVirtualMemoryManager();    
     uint32_t logicalAddress;
     uint16_t physicalAddress;
     char byte;
-    
+
     while(fgets(address, 12, addresses) != NULL){
         logicalAddress = (uint32_t) atoi(address);
         physicalAddress = translateAddress(vmm, logicalAddress);

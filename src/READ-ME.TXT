@@ -1,0 +1,7 @@
+En:
+
+Execute run.sh file. It will do all the job.
+
+Pt-br:
+
+Execute o arquivo run.sh. Ele fara todo o trabalho.

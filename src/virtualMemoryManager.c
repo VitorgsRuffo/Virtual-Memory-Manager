@@ -24,10 +24,10 @@ typedef struct {
     Statistics stats;
 }virtualMemoryManager;  
 
-VirtualMemoryManager newVirtualMemoryManager(){
+VirtualMemoryManager newVirtualMemoryManager(char* backingStorePath, int physicalMemorySize){
     virtualMemoryManager* vmm = (virtualMemoryManager*) malloc(sizeof(virtualMemoryManager));
     if(vmm == NULL) return NULL;
-    vmm->backingStore = fopen("./backing_store.bin", "rb");
+    vmm->backingStore = fopen(backingStorePath, "rb");
     if(vmm->backingStore) return NULL;
     vmm->stats.totalAddressReferences = 0;
     vmm->stats.pageFaultCount = 0;
