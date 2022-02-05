@@ -5,6 +5,7 @@
 
 #define PHYSICAL_MEMORY_SIZE 65536
 #define PAGE_FRAME_SIZE 256
+#define PAGE_TABLE_ENTRIES 256
 
 #define GET_OFFSET(binaryNumber) (binaryNumber & 0xff)
 #define GET_PAGE(binaryNumber) ((binaryNumber >> 8) & 0xff)
@@ -17,9 +18,15 @@ typedef struct {
 }Statistics;
 
 typedef struct {
+    int frame;
+    char validInvalidChar;
+}pageTableEntry;    
+
+typedef struct {
     char physicalMemory[PHYSICAL_MEMORY_SIZE];
-    PageTable pageTable;
-    TLB tlb;
+    int nextFreeFrameInPhysicalMemory;
+    pageTableEntry pageTable[PAGE_TABLE_ENTRIES];
+    //TLB tlb;
     FILE* backingStore;
     Statistics stats;
 }virtualMemoryManager;  
@@ -27,6 +34,7 @@ typedef struct {
 VirtualMemoryManager newVirtualMemoryManager(char* backingStorePath){
     virtualMemoryManager* vmm = (virtualMemoryManager*) malloc(sizeof(virtualMemoryManager));
     if(vmm == NULL) return NULL;
+    vmm->nextFreeFrameInPhysicalMemory = 0;
     vmm->backingStore = fopen(backingStorePath, "rb");
     if(vmm->backingStore) return NULL;
     vmm->stats.totalAddressReferences = 0;
@@ -34,18 +42,61 @@ VirtualMemoryManager newVirtualMemoryManager(char* backingStorePath){
     vmm->stats.tlbHitCount = 0;
     vmm->stats.pageFaultRate = -1;
     vmm->stats.tlbHitRate = -1;
-    //pageTable
+    for(int i = 0; i<PAGE_TABLE_ENTRIES; i++)
+        vmm->pageTable[i].validInvalidChar = 'i';
     //tlb
     return vmm;
 }
 
-uint16_t translateAddress(VirtualMemoryManager Vmm, uint32_t logicalAddress){
-    virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
+
+void handlePageFault(virtualMemoryManager* vmm, int pageNumber){
+    //reading page from backing store...
+    fseek(vmm->backingStore, PAGE_FRAME_SIZE * pageNumber, SEEK_SET);
+    char page[PAGE_FRAME_SIZE];
+    fread(page, PAGE_FRAME_SIZE, 1, vmm->backingStore);
+
+    //writing page to a free physical memory frame...
+    int framePhysicalAddress = vmm->nextFreeFrameInPhysicalMemory * PAGE_FRAME_SIZE;
+    sprintf(&(vmm->physicalMemory[framePhysicalAddress]), "%s", page); //(FUTURE: keep track of free page frames and perform page replacement when memory is full - FIFO or LRU policy - Section 9.4)
+    
+    //update page table... (FUTURE: update TLB too and perform replacement when TLB is full - FIFO or LRU policy)
+    vmm->pageTable[pageNumber].validInvalidChar = 'v';
+    vmm->pageTable[pageNumber].frame = vmm->nextFreeFrameInPhysicalMemory;
+    vmm->nextFreeFrameInPhysicalMemory++;
+}   
+
+int seekPageTable(virtualMemoryManager* vmm, int pageNumber){
+    if (vmm->pageTable[pageNumber].validInvalidChar == 'i')
+        return -1;
+    else
+        return vmm->pageTable[pageNumber].frame;
+}
+
+// int seekTLB(virtualMemoryManager* vmm, int pageNumber){
+
+// }
+
+//private function:
+int seekFrameNumber(virtualMemoryManager* vmm, int pageNumber){
+    int frameNumber;
+    
+    // frameNumber = seekTLB(vmm, pageNumber);
+    // if(frameNumber >= 0){ //TLB hit
+    //     return frameNumber;
+
+    // }else{ //TLB miss
+        frameNumber = seekPageTable(vmm, pageNumber);
+        if(frameNumber >= 0){ //found
+            return frameNumber;
+        
+        }else{ //page fault  
+            handlePageFault(vmm, pageNumber); //demand paging technique.
+            return seekFrameNumber(vmm, pageNumber);
+        }
+    //}
     /*
-    translateAddress(log_address):  (Section 8.5)  
-    - extract page number and offset from address().
-    - getPageFrame(pg):
-        - consult TLB: (FUTURE)
+    - getPageFrame(pg): (Section 8.5) 
+        - consult TLB: (FUTURE) x
             -if hit:
                 return frame num    
             -else:
@@ -57,12 +108,24 @@ uint16_t translateAddress(VirtualMemoryManager Vmm, uint32_t logicalAddress){
                             - reads page num from backing store.
                             - store it in a free page frame in physical mem. (FUTURE: keep track of free page frames and perform page replacement when memory is full - FIFO or LRU policy - Section 9.4)
                             - update TLB and page table() (FUTURE: perform replacement when TLB is full - FIFO or LRU policy)
-                        - getPageFrame(pg)
-    - phy_address = GET_PHYSICAL_ADDRESS(frame, offset)
-    - totalAddressReferences++
-    - return phy_address
+                        -return getPageFrame(pg)
+    -
 
     */
+}
+
+uint16_t translateAddress(VirtualMemoryManager Vmm, uint32_t logicalAddress){
+    
+    virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
+    
+    int pageNumber = GET_PAGE(logicalAddress);
+    int offset = GET_OFFSET(logicalAddress);
+    int frameNumber = seekFrameNumber(vmm, pageNumber);
+
+    uint16_t physicalAddress =  GET_PHYSICAL_ADDRESS(frameNumber, offset);
+
+    vmm->stats.totalAddressReferences++;
+    return physicalAddress;
 }
 
 char readPhysicalMemory(VirtualMemoryManager Vmm, uint16_t physicalAddress){
@@ -73,10 +136,10 @@ char readPhysicalMemory(VirtualMemoryManager Vmm, uint16_t physicalAddress){
 void printStatistics(VirtualMemoryManager Vmm){
     virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
     double pageFaultRate = ((vmm->stats.pageFaultCount) / vmm->stats.totalAddressReferences) * 100;
-    double tblHitRate = ((vmm->stats.tlbHitCount) / vmm->stats.totalAddressReferences) * 100;
-    printf("Statistics:\nPage-fault rate: %.2lf percent | TLB hit rate: %.2lf percent\n", pageFaultRate, tblHitRate);
+    double tlbHitRate = ((vmm->stats.tlbHitCount) / vmm->stats.totalAddressReferences) * 100;
+    printf("Statistics:\nPage-fault rate: %.2lf percent | TLB hit rate: %.2lf percent\n", pageFaultRate, tlbHitRate);
 }
 
 void freeVirtualMemoryManager(VirtualMemoryManager Vmm){
-    virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
+ //   virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
 }
