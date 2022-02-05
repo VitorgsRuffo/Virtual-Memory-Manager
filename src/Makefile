@@ -1,19 +1,19 @@
-CC = gcc
+CC = g++
 
-flags = -std=c99 -fstack-protector-all -g -Wall -Werror
+flags = # -fstack-protector-all -g -Wall -Werror
 
 obj = main.o virtualMemoryManager.o
 
 
 vmm: $(obj)
-	$(CC) $(obj) -o vmm -lm
+	$(CC) -o vmm $(obj)
 
-main.o: main.c  
-	$(CC) $(flags) -c main.c
+main.o: main.cpp  
+	$(CC) $(flags) -c main.cpp
 
 
-virtualMemoryManager.o: virtualMemoryManager.c 
-	$(CC) $(flags) -c virtualMemoryManager.c
+virtualMemoryManager.o: virtualMemoryManager.cpp 
+	$(CC) $(flags) -c virtualMemoryManager.cpp
 
 clean: 
 	rm $(obj) vmm

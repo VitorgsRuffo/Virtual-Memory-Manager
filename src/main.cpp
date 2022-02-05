@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "virtualMemoryManager.h"
-
+using namespace std;
 
 int main(int argc, char *argv[]){
     if (argc < 3){

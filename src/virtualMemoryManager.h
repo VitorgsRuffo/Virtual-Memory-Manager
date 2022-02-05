@@ -9,7 +9,7 @@ uint16_t translateAddress(VirtualMemoryManager Vmm, uint32_t logicalAddress);
 
 char readPhysicalMemory(VirtualMemoryManager Vmm, uint16_t physicalAddress);
 
-void printMemory(VirtualMemoryManager Vmm);
+void printPhysicalMemory(VirtualMemoryManager Vmm);
 
 void printStatistics(VirtualMemoryManager Vmm);
 
