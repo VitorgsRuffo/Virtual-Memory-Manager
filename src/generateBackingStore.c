@@ -2,14 +2,16 @@
 #include <stdlib.h>
 
 void GerarArquivo();
+void GerarArquivoValoresSequenciais();
 void ConsultarArquivo();
 
 void main()
 {
-    GerarArquivo(); 
+    //GerarArquivo(); 
+    GerarArquivoValoresSequenciais();
 	//ConsultarArquivo();
-    return 0;
 }
+
 void GerarArquivo()
 {   FILE * arq;
 
@@ -29,6 +31,24 @@ void GerarArquivo()
         num=(char)(numint%256);
 
         fwrite(&num,sizeof(num),1,arq);
+    }
+    fclose(arq);
+}
+
+
+void GerarArquivoValoresSequenciais()
+{   FILE * arq;
+
+    
+    if ((arq = fopen("backing_store.bin","wb")) == NULL){
+       printf("Error! opening file");
+       exit(1);
+   }
+    int i;
+    unsigned char c;
+    for (i=0;i<65536;i++){
+        c = (unsigned char) (i%256);
+        fwrite(&c,sizeof(c),1,arq);
     }
     fclose(arq);
 }

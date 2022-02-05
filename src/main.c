@@ -25,7 +25,7 @@ int main(int argc, char *argv[]){
     }  
     uint32_t logicalAddress;
     uint16_t physicalAddress;
-    char byte;
+    unsigned char byte;
 
     while(fgets(address, 12, addresses) != NULL){
         logicalAddress = (uint32_t) atoi(address);

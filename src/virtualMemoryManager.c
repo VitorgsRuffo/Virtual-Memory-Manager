@@ -9,7 +9,7 @@
 
 #define GET_OFFSET(binaryNumber) (binaryNumber & 0xff)
 #define GET_PAGE(binaryNumber) ((binaryNumber >> 8) & 0xff)
-#define GET_PHYSICAL_ADDRESS(frame, offset) ((8 << frame) | offset)
+#define GET_PHYSICAL_ADDRESS(frame, offset) ((frame << 8 ) | offset)
 
 typedef struct {
     int totalAddressReferences;
@@ -36,7 +36,10 @@ VirtualMemoryManager newVirtualMemoryManager(char* backingStorePath){
     if(vmm == NULL) return NULL;
     vmm->nextFreeFrameInPhysicalMemory = 0;
     vmm->backingStore = fopen(backingStorePath, "rb");
-    if(vmm->backingStore) return NULL;
+    if(vmm->backingStore == NULL){
+        free(vmm);
+        return NULL;   
+    }
     vmm->stats.totalAddressReferences = 0;
     vmm->stats.pageFaultCount = 0;
     vmm->stats.tlbHitCount = 0;
@@ -50,15 +53,11 @@ VirtualMemoryManager newVirtualMemoryManager(char* backingStorePath){
 
 
 void handlePageFault(virtualMemoryManager* vmm, int pageNumber){
-    //reading page from backing store...
+    //reading page from backing store...and writing page to a free physical memory frame...
     fseek(vmm->backingStore, PAGE_FRAME_SIZE * pageNumber, SEEK_SET);
-    char page[PAGE_FRAME_SIZE];
-    fread(page, PAGE_FRAME_SIZE, 1, vmm->backingStore);
+    int framePhysicalAddress = (vmm->nextFreeFrameInPhysicalMemory) * PAGE_FRAME_SIZE; //(FUTURE: keep track of free page frames and perform page replacement when memory is full - FIFO or LRU policy - Section 9.4)
+    fread(&(vmm->physicalMemory[framePhysicalAddress]), PAGE_FRAME_SIZE, 1, vmm->backingStore);
 
-    //writing page to a free physical memory frame...
-    int framePhysicalAddress = vmm->nextFreeFrameInPhysicalMemory * PAGE_FRAME_SIZE;
-    sprintf(&(vmm->physicalMemory[framePhysicalAddress]), "%s", page); //(FUTURE: keep track of free page frames and perform page replacement when memory is full - FIFO or LRU policy - Section 9.4)
-    
     //update page table... (FUTURE: update TLB too and perform replacement when TLB is full - FIFO or LRU policy)
     vmm->pageTable[pageNumber].validInvalidChar = 'v';
     vmm->pageTable[pageNumber].frame = vmm->nextFreeFrameInPhysicalMemory;
@@ -82,14 +81,17 @@ int seekFrameNumber(virtualMemoryManager* vmm, int pageNumber){
     
     // frameNumber = seekTLB(vmm, pageNumber);
     // if(frameNumber >= 0){ //TLB hit
-    //     return frameNumber;
+            //vmm->stats.tlbHitCount++;
+    //      return frameNumber;
 
     // }else{ //TLB miss
+
         frameNumber = seekPageTable(vmm, pageNumber);
         if(frameNumber >= 0){ //found
             return frameNumber;
         
         }else{ //page fault  
+            vmm->stats.pageFaultCount++;
             handlePageFault(vmm, pageNumber); //demand paging technique.
             return seekFrameNumber(vmm, pageNumber);
         }
@@ -122,9 +124,9 @@ uint16_t translateAddress(VirtualMemoryManager Vmm, uint32_t logicalAddress){
     int offset = GET_OFFSET(logicalAddress);
     int frameNumber = seekFrameNumber(vmm, pageNumber);
 
-    uint16_t physicalAddress =  GET_PHYSICAL_ADDRESS(frameNumber, offset);
-
+    uint16_t physicalAddress = GET_PHYSICAL_ADDRESS(frameNumber, offset);
     vmm->stats.totalAddressReferences++;
+
     return physicalAddress;
 }
 
@@ -133,11 +135,19 @@ char readPhysicalMemory(VirtualMemoryManager Vmm, uint16_t physicalAddress){
     return vmm->physicalMemory[physicalAddress];
 }   
 
+void printMemory(VirtualMemoryManager Vmm){
+    virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
+    printf("\nPhysical memory:\n");
+    for(int i = 0 ; i<PHYSICAL_MEMORY_SIZE; i++){
+        printf("(%d) %d\n", i, vmm->physicalMemory[i]);
+    }
+}
+
 void printStatistics(VirtualMemoryManager Vmm){
     virtualMemoryManager* vmm = (virtualMemoryManager*) Vmm;
-    double pageFaultRate = ((vmm->stats.pageFaultCount) / vmm->stats.totalAddressReferences) * 100;
-    double tlbHitRate = ((vmm->stats.tlbHitCount) / vmm->stats.totalAddressReferences) * 100;
-    printf("Statistics:\nPage-fault rate: %.2lf percent | TLB hit rate: %.2lf percent\n", pageFaultRate, tlbHitRate);
+    double pageFaultRate = ((double) (vmm->stats.pageFaultCount) / vmm->stats.totalAddressReferences) * 100;
+    double tlbHitRate = ((double) (vmm->stats.tlbHitCount) / vmm->stats.totalAddressReferences) * 100;
+    printf("\nStatistics:\nPage-fault rate: %.2lf percent | TLB hit rate: %.2lf percent\n", pageFaultRate, tlbHitRate);
 }
 
 void freeVirtualMemoryManager(VirtualMemoryManager Vmm){

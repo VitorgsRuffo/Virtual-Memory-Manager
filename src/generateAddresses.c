@@ -12,6 +12,7 @@ int main(){
 
     for(int i = 0; i<1000; i++)
         fprintf(addresses, "%d\n", (rand() % 65535));
+        //fprintf(addresses, "%d\n", i);
 
     return 0;
 }
