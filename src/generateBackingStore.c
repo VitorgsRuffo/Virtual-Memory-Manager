@@ -7,8 +7,8 @@ void ConsultarArquivo();
 
 void main()
 {
-    //GerarArquivo(); 
-    GerarArquivoValoresSequenciais();
+    GerarArquivo(); 
+    //GerarArquivoValoresSequenciais();
 	//ConsultarArquivo();
 }
 
